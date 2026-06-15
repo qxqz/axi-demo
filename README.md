@@ -26,7 +26,8 @@ hf download Qwen/Qwen2.5-0.5B-Instruct
 ## 가중치
 
 `weights/` 폴더
-업로드 중입니다. 업로드 후 링크 올리겠습니다.
+
+[link](https://drive.google.com/drive/folders/1nBObwywas7iRHC2fPpJzmrrM3o-RITIC?usp=sharing) for download
 
 ```
 weights/
