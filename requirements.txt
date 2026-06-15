@@ -10,3 +10,4 @@ qwen-vl-utils
 bitsandbytes
 accelerate
 torchvision
+huggingface_hub

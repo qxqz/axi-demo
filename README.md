@@ -18,9 +18,9 @@ pip install -r requirements.txt
 HuggingFace에서 모델을 다운로드.
 
 ```bash
-huggingface-cli download openai/clip-vit-large-patch14
-huggingface-cli download Qwen/Qwen2.5-VL-7B-Instruct
-huggingface-cli download Qwen/Qwen2.5-0.5B-Instruct
+hf download openai/clip-vit-large-patch14
+hf download Qwen/Qwen2.5-VL-7B-Instruct
+hf download Qwen/Qwen2.5-0.5B-Instruct
 ```
 
 ## 가중치
