@@ -1,0 +1,11 @@
+torch>=2.0.0
+transformers>=4.43.0
+fastapi
+uvicorn
+python-multipart
+opencv-python
+Pillow
+numpy
+qwen-vl-utils
+bitsandbytes
+accelerate

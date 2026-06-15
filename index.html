@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>교통사고 과실비율 분석</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
+.header { background: #1a1a2e; color: white; padding: 20px 40px; }
+.header h1 { font-size: 1.4rem; }
+.header p  { font-size: 0.85rem; color: #aaa; margin-top: 4px; }
+.container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
+.card { background: white; border-radius: 12px; padding: 24px;
+        box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.card h2 { font-size: 1rem; color: #1a1a2e; margin-bottom: 14px;
+           padding-bottom: 8px; border-bottom: 2px solid #f0f2f5; }
+.upload-area { border: 2px dashed #ccc; border-radius: 8px; padding: 40px;
+               text-align: center; cursor: pointer; transition: border-color 0.2s; }
+.upload-area:hover { border-color: #1a1a2e; }
+.upload-area input { display: none; }
+button { background: #1a1a2e; color: white; border: none; padding: 10px 28px;
+         border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
+button:disabled { background: #aaa; cursor: not-allowed; }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
+         font-size: 0.8rem; font-weight: 600; margin: 2px;
+         background: #e3f2fd; color: #1565c0; }
+.badge.green { background: #e8f5e9; color: #2e7d32; }
+.neg-bar { display: flex; height: 44px; border-radius: 8px; overflow: hidden; margin: 12px 0; }
+.neg-a { background: #ef5350; color: white; display: flex; align-items: center;
+         justify-content: center; font-weight: 700; transition: width 0.5s; }
+.neg-b { background: #42a5f5; color: white; display: flex; align-items: center;
+         justify-content: center; font-weight: 700; transition: width 0.5s; }
+.row { display: flex; justify-content: space-between; padding: 7px 0;
+       border-bottom: 1px solid #f5f5f5; font-size: 0.9rem; }
+.row:last-child { border-bottom: none; }
+.label { color: #888; width: 100px; }
+.desc  { background: #f8f9fa; border-radius: 8px; padding: 14px;
+         font-size: 0.88rem; line-height: 1.65; }
+.loading { text-align: center; padding: 30px; }
+.spinner { display: inline-block; width: 28px; height: 28px; border: 3px solid #f0f2f5;
+           border-top-color: #1a1a2e; border-radius: 50%;
+           animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.prob-row { display: flex; justify-content: space-between; font-size: 0.82rem; padding: 2px 0; }
+.prob-bg  { background: #f0f2f5; border-radius: 4px; height: 5px; margin: 2px 0 6px; }
+.prob-fill { background: #1a1a2e; height: 5px; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>교통사고 과실비율 분석 시스템</h1>
+  <p>Stage 1 (CLIP) → Stage 2 (Qwen2.5-VL-7B) → Stage 3 (Cascade Classifier) → 과실비율</p>
+</div>
+<div class="container">
+
+  <div class="card">
+    <h2>영상 업로드</h2>
+    <div class="upload-area" onclick="document.getElementById('file-input').click()">
+      <input type="file" id="file-input" accept="video/mp4" onchange="onFileSelect(this)">
+      <p id="upload-text" style="color:#888;">mp4 파일을 선택하세요</p>
+    </div>
+    <div style="margin-top:14px; text-align:right;">
+      <button id="run-btn" onclick="run()" disabled>분석 실행</button>
+    </div>
+  </div>
+
+  <div id="loading" style="display:none;" class="card loading">
+    <div class="spinner"></div>
+    <p id="step-text" style="margin-top:12px; color:#666;">분석 중...</p>
+    <p id="elapsed" style="color:#aaa; font-size:0.85rem; margin-top:6px;"></p>
+  </div>
+
+  <div id="result" style="display:none;">
+    <div class="card">
+      <h2>Stage 1 — 사고 유형 분류</h2>
+      <div id="s1"></div>
+    </div>
+    <div class="card">
+      <h2>Stage 2 — VLM 사고 묘사</h2>
+      <div id="s2" class="desc"></div>
+    </div>
+    <div class="card">
+      <h2>Stage 3 — 세부 분류</h2>
+      <div id="s3"></div>
+    </div>
+    <div class="card">
+      <h2>과실비율</h2>
+      <div class="neg-bar">
+        <div class="neg-a" id="neg-a" style="width:50%">A 50%</div>
+        <div class="neg-b" id="neg-b" style="width:50%">B 50%</div>
+      </div>
+      <div id="neg-detail" style="text-align:center; font-size:0.85rem; color:#888;"></div>
+    </div>
+  </div>
+
+</div>
+<script>
+let selectedFile = null;
+
+function onFileSelect(input) {
+  selectedFile = input.files[0];
+  if (selectedFile) {
+    document.getElementById('upload-text').textContent = selectedFile.name;
+    document.getElementById('run-btn').disabled = false;
+  }
+}
+
+async function run() {
+  if (!selectedFile) return;
+
+  const steps = ['Stage 1: 사고 유형 및 장소 분류 중...',
+                 'Stage 2: VLM 사고 상황 묘사 중...',
+                 'Stage 3: 세부 특징 분류 중...',
+                 '과실비율 산출 중...'];
+  let step = 0;
+  const start = Date.now();
+
+  document.getElementById('result').style.display  = 'none';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('step-text').textContent  = steps[0];
+
+  const timer = setInterval(() => {
+    document.getElementById('elapsed').textContent =
+      ((Date.now() - start) / 1000).toFixed(1) + '초 경과';
+    step = Math.min(step + 1, steps.length - 1);
+    document.getElementById('step-text').textContent = steps[step];
+  }, 2000);
+
+  try {
+    const form = new FormData();
+    form.append('file', selectedFile);
+    const res  = await fetch('/api/analyze', { method: 'POST', body: form });
+    if (!res.ok) throw new Error(await res.text());
+    const d = await res.json();
+    render(d);
+  } catch(e) {
+    alert('오류: ' + e.message);
+  } finally {
+    clearInterval(timer);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('result').style.display  = 'block';
+  }
+}
+
+function render(d) {
+  let s1 = `<div style="margin-bottom:10px;">
+    <span class="badge">${d.stage1.pred_obj_name}</span>`;
+  d.stage1.top3_place_names.forEach((p,i) =>
+    s1 += ` <span class="badge ${i===0?'green':''}">${p}</span>`);
+  s1 += '</div>';
+  Object.entries(d.stage1.object_probs).forEach(([k,v]) => {
+    s1 += `<div class="prob-row"><span>${k}</span><span>${v}%</span></div>
+           <div class="prob-bg"><div class="prob-fill" style="width:${v}%"></div></div>`;
+  });
+  document.getElementById('s1').innerHTML = s1;
+
+  document.getElementById('s2').textContent = d.stage2.description;
+
+  document.getElementById('s3').innerHTML = `
+    <div class="row"><span class="label">특징</span><span>${d.stage3.pred_feature}</span></div>
+    <div class="row"><span class="label">A 행동</span><span>${d.stage3.pred_a}</span></div>
+    <div class="row"><span class="label">B 행동</span><span>${d.stage3.pred_b}</span></div>`;
+
+  const na = d.negligence.a, nb = d.negligence.b;
+  if (na !== null && nb !== null) {
+    document.getElementById('neg-a').style.width = na + '%';
+    document.getElementById('neg-a').textContent = 'A ' + na + '%';
+    document.getElementById('neg-b').style.width = nb + '%';
+    document.getElementById('neg-b').textContent = 'B ' + nb + '%';
+    document.getElementById('neg-detail').textContent = `A: ${na}% / B: ${nb}%`;
+  } else {
+    document.getElementById('neg-detail').textContent = '해당 조합 과실비율 정보 없음';
+  }
+}
+</script>
+</body>
+</html>
