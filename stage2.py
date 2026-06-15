@@ -22,7 +22,7 @@ def load_model():
         bnb_4bit_quant_type='nf4',
     )
     m = Qwen2_5_VLForConditionalGeneration.from_pretrained(
-        STAGE2_MODEL, quantization_config=quant, device_map='auto')
+        STAGE2_MODEL, quantization_config=quant, device_map='cuda:0', low_cpu_mem_usage=True)
     p = AutoProcessor.from_pretrained(
         STAGE2_MODEL, min_pixels=16*28*28, max_pixels=256*28*28)
     m.eval()

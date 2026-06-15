@@ -35,7 +35,8 @@ class CLIPAccidentClassifier(nn.Module):
     def forward(self, pixel_values):
         B, N, C, H, W = pixel_values.shape
         pv    = pixel_values.view(B * N, C, H, W)
-        feats = self.clip_model.vision_model(pixel_values=pv).pooler_output
+
+        feats = self.clip_model.get_image_features(pixel_values=pv).pooler_output
         feats = feats.view(B, N, -1)
         vec   = self.temporal_attention(feats)
         return {

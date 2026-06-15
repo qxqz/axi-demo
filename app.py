@@ -1,3 +1,5 @@
+import gc
+import torch
 import shutil, uuid
 from pathlib import Path
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -44,16 +46,24 @@ async def analyze(file: UploadFile = File(...)):
 
     try:
         s1 = stage1.infer(video_path)
+        gc.collect()
+        torch.cuda.empty_cache()
+
         s2 = stage2.infer(
             video_path,
             s1['pred_obj_name'],
             s1['top3_place_names'][0],
         )
+        gc.collect()
+        torch.cuda.empty_cache()
+
         s3 = stage3.infer(
             s2['description'],
             s1['pred_obj_name'],
             s1['top3_place_names'],
         )
+        gc.collect()
+        torch.cuda.empty_cache()
 
         neg_a, neg_b = None, None
         for place_name in s1['top3_place_names']:
