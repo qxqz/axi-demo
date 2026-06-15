@@ -11,30 +11,36 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 class TemporalAttention(nn.Module):
     def __init__(self, dim):
         super().__init__()
-        self.attn = nn.Linear(dim, 1)
+        self.query = nn.Linear(dim, dim)
+        self.key   = nn.Linear(dim, dim)
+        self.value = nn.Linear(dim, dim)
+        self.scale = dim ** -0.5
 
     def forward(self, x):
-        w = torch.softmax(self.attn(x), dim=1)
-        return (x * w).sum(dim=1)
+        q = self.query(x)
+        k = self.key(x)
+        v = self.value(x)
+        attn = torch.softmax(q @ k.transpose(-2, -1) * self.scale, dim=-1)
+        return (attn @ v).mean(dim=1)
 
 
 class CLIPAccidentClassifier(nn.Module):
     def __init__(self, clip_model_name, num_objects=4, num_places=15, embed_dim=768):
         super().__init__()
-        self.clip      = CLIPModel.from_pretrained(clip_model_name)
-        self.temporal  = TemporalAttention(embed_dim)
-        self.obj_head  = nn.Linear(embed_dim, num_objects)
-        self.place_head = nn.Linear(embed_dim, num_places)
+        self.clip_model        = CLIPModel.from_pretrained(clip_model_name)
+        self.temporal_attention = TemporalAttention(embed_dim)
+        self.object_classifier  = nn.Linear(embed_dim, num_objects)
+        self.place_classifier   = nn.Linear(embed_dim, num_places)
 
     def forward(self, pixel_values):
         B, N, C, H, W = pixel_values.shape
-        pv = pixel_values.view(B * N, C, H, W)
-        feats = self.clip.vision_model(pixel_values=pv).pooler_output
+        pv    = pixel_values.view(B * N, C, H, W)
+        feats = self.clip_model.vision_model(pixel_values=pv).pooler_output
         feats = feats.view(B, N, -1)
-        vec   = self.temporal(feats)
+        vec   = self.temporal_attention(feats)
         return {
-            'object_logits': self.obj_head(vec),
-            'place_logits':  self.place_head(vec),
+            'object_logits': self.object_classifier(vec),
+            'place_logits':  self.place_classifier(vec),
         }
 
 
