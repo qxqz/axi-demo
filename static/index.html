@@ -8,7 +8,6 @@
 body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
 .header { background: #1a1a2e; color: white; padding: 20px 40px; }
 .header h1 { font-size: 1.4rem; }
-.header p  { font-size: 0.85rem; color: #aaa; margin-top: 4px; }
 .container { max-width: 900px; margin: 30px auto; padding: 0 20px; }
 .card { background: white; border-radius: 12px; padding: 24px;
         box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 20px; }
@@ -21,10 +20,10 @@ body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; }
 button { background: #1a1a2e; color: white; border: none; padding: 10px 28px;
          border-radius: 8px; font-size: 0.95rem; cursor: pointer; }
 button:disabled { background: #aaa; cursor: not-allowed; }
-.badge { display: inline-block; padding: 3px 10px; border-radius: 20px;
-         font-size: 0.8rem; font-weight: 600; margin: 2px;
-         background: #e3f2fd; color: #1565c0; }
-.badge.green { background: #e8f5e9; color: #2e7d32; }
+.badge         { display: inline-block; padding: 3px 10px; border-radius: 20px;
+                 font-size: 0.8rem; font-weight: 600; margin: 2px;
+                 background: #f0f2f5; color: #555; border: 1px solid #ddd; }
+.badge.green   { background: #e8f5e9; color: #2e7d32; border-color: #a5d6a7; }
 .neg-bar { display: flex; height: 44px; border-radius: 8px; overflow: hidden; margin: 12px 0; }
 .neg-a { background: #ef5350; color: white; display: flex; align-items: center;
          justify-content: center; font-weight: 700; transition: width 0.5s; }
@@ -49,7 +48,6 @@ button:disabled { background: #aaa; cursor: not-allowed; }
 <body>
 <div class="header">
   <h1>교통사고 과실비율 분석 시스템</h1>
-  <p>Stage 1 (CLIP) → Stage 2 (Qwen2.5-VL-7B) → Stage 3 (Cascade Classifier) → 과실비율</p>
 </div>
 <div class="container">
 
@@ -89,7 +87,6 @@ button:disabled { background: #aaa; cursor: not-allowed; }
         <div class="neg-a" id="neg-a" style="width:50%">A 50%</div>
         <div class="neg-b" id="neg-b" style="width:50%">B 50%</div>
       </div>
-      <div id="neg-detail" style="text-align:center; font-size:0.85rem; color:#888;"></div>
     </div>
   </div>
 
@@ -145,8 +142,8 @@ async function run() {
 function render(d) {
   let s1 = `<div style="margin-bottom:10px;">
     <span class="badge">${d.stage1.pred_obj_name}</span>`;
-  d.stage1.top3_place_names.forEach((p,i) =>
-    s1 += ` <span class="badge ${i===0?'green':''}">${p}</span>`);
+  d.stage1.top3_place_names.forEach((p, i) =>
+    s1 += ` <span class="badge ${i===0 ? 'green' : ''}">${p}</span>`);
   s1 += '</div>';
   Object.entries(d.stage1.object_probs).forEach(([k,v]) => {
     s1 += `<div class="prob-row"><span>${k}</span><span>${v}%</span></div>
@@ -167,7 +164,6 @@ function render(d) {
     document.getElementById('neg-a').textContent = 'A ' + na + '%';
     document.getElementById('neg-b').style.width = nb + '%';
     document.getElementById('neg-b').textContent = 'B ' + nb + '%';
-    document.getElementById('neg-detail').textContent = `A: ${na}% / B: ${nb}%`;
   } else {
     document.getElementById('neg-detail').textContent = '해당 조합 과실비율 정보 없음';
   }

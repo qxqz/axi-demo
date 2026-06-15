@@ -1,3 +1,4 @@
 # .gitignore
 weights/*.pt
 uploads/
+__pycache__/

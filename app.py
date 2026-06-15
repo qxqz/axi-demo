@@ -5,6 +5,9 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+import os
+MOCK = os.environ.get('MOCK', '0') == '1'
+
 import stage1, stage2, stage3
 from utils import mapping, get_negligence
 from config import UPLOAD_DIR
@@ -23,6 +26,21 @@ async def analyze(file: UploadFile = File(...)):
     video_path = UPLOAD_DIR / f"{uuid.uuid4().hex}.mp4"
     with open(video_path, 'wb') as f:
         shutil.copyfileobj(file.file, f)
+
+    if MOCK:
+        return {
+            'stage1': {
+                'pred_obj_name':    '차대차',
+                'top3_place_names': ['직선도로', '교차로', 'T자형교차로'],
+                'top3_place_ids':   [0, 1, 2],
+                'object_probs':     {'차대차': 87.3, '차대보행자': 5.2,
+                                     '차대이륜차': 4.1, '차대자전거': 3.4},
+            },
+            'stage2': {'description': '(mock) A차량이 직진 중 B차량이 진로변경하며 충돌.'},
+            'stage3': {'pred_feature': '차로변경진로변경',
+                       'pred_a': '후행직진', 'pred_b': '선행진로변경'},
+            'negligence': {'a': 20, 'b': 80},
+        }
 
     try:
         s1 = stage1.infer(video_path)
@@ -63,8 +81,12 @@ def index():
 
 if __name__ == "__main__":
     import uvicorn
-    print("Loading models...")
-    stage1.load_model()
-    stage3.load_model()
-    print("Ready.")
+    if not MOCK:
+        print("Loading models...")
+        stage1.load_model()
+        stage3.load_model()
+        print("Ready.")
+    else:
+        print("Mock mode - skipping model load.")
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
